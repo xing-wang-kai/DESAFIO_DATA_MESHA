@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  spark:
+    build: .
+    container_name: spark_container
+    ports:
+      - "4040:4040"  # Spark UI
+      - "8888:8888"  # Jupyter Notebook
+    volumes:
+      - .:/app  # Montar o diretório atual no contêiner
+    environment:
+      - SPARK_HOME=/opt/bitnami/spark
+      - PYSPARK_PYTHON=python3
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql:8.0
+    container_name: mysql_container
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: enem_db
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
