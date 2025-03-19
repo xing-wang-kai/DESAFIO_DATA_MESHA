@@ -1,3 +1,4 @@
 # .gitignore
 database/raw/MICRODADOS_ENEM_2020.csv
 venv/
+mysql/

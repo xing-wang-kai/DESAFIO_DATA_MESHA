@@ -1,20 +1,46 @@
 import mysql.connector
+from dotenv import load_dotenv
+import os
+from pyspark.sql import DataFrame
+from typing import List, Tuple, Dict, Optional
 
-def load_to_mysql(dim_aluno, dim_escola, dim_municipio, fato_enem, batch_size=1000):
-    # Conecta ao MySQL sem especificar um banco de dados inicial
-    # conn = mysql.connector.connect(
-    #     host="localhost",
-    #     user="root",
-    #     password="1234"
-    # )
-    
-    conn = mysql.connector.connect(
-        host="mysql",  # Nome do serviço no docker-compose
-        user="root",
-        password="1234",
-        database="enem_db"
+def load_to_mysql(
+    dim_aluno: DataFrame,
+    dim_escola: DataFrame,
+    dim_municipio: DataFrame,
+    fato_enem: DataFrame,
+    batch_size: int = 1000
+) -> None:
+    """
+    Carrega os dados transformados (DataFrames) para o banco de dados MySQL.
+
+    Args:
+        dim_aluno (DataFrame): DataFrame contendo os dados da dimensão 'aluno'.
+        dim_escola (DataFrame): DataFrame contendo os dados da dimensão 'escola'.
+        dim_municipio (DataFrame): DataFrame contendo os dados da dimensão 'municipio'.
+        fato_enem (DataFrame): DataFrame contendo os dados da tabela fato 'fato_enem'.
+        batch_size (int, optional): Tamanho do lote para inserção no banco de dados. Padrão é 1000.
+
+    Returns:
+        None
+    """
+    # Carrega as variáveis de ambiente do arquivo .env
+    load_dotenv()
+
+    # Configurações de conexão com o MySQL
+    host: str = os.getenv("HOST", "localhost")
+    port: int = int(os.getenv("PORT", "3306"))
+    user: str = os.getenv("USER", "root")
+    password: str = os.getenv("PASSWORD", "1234")
+
+    # Conecta ao MySQL
+    conn: mysql.connector.MySQLConnection = mysql.connector.connect(
+        host=host,
+        port=port,
+        user=user,
+        password=password
     )
-    cursor = conn.cursor()
+    cursor: mysql.connector.cursor.MySQLCursor = conn.cursor()
 
     # Cria o banco de dados se ele não existir
     cursor.execute("CREATE DATABASE IF NOT EXISTS enem_db")
@@ -71,18 +97,39 @@ def load_to_mysql(dim_aluno, dim_escola, dim_municipio, fato_enem, batch_size=10
         )
     """)
 
-    # Função para inserir um lote de dados em uma tabela
-    def insert_batch(table_name, columns, batch):
-        placeholders = ", ".join(["%s"] * len(columns))
-        query = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders})"
+    def insert_batch(table_name: str, columns: List[str], batch: List[Tuple]) -> None:
+        """
+        Insere um lote de registros em uma tabela do MySQL.
+
+        Args:
+            table_name (str): Nome da tabela onde os dados serão inseridos.
+            columns (List[str]): Lista de colunas da tabela.
+            batch (List[Tuple]): Lista de tuplas contendo os dados a serem inseridos.
+
+        Returns:
+            None
+        """
+        placeholders: str = ", ".join(["%s"] * len(columns))
+        updates: str = ", ".join([f"{col} = VALUES({col})" for col in columns])
+        query: str = f"INSERT INTO {table_name} ({', '.join(columns)}) VALUES ({placeholders}) ON DUPLICATE KEY UPDATE {updates}"
         cursor.executemany(query, batch)
         conn.commit()
 
-    # Insere os dados nas tabelas dimensionais
-    def insert_dim_data(df, table_name, columns):
-        batch = []
+    def insert_dim_data(df: DataFrame, table_name: str, columns: List[str]) -> None:
+        """
+        Insere os dados de uma dimensão (DataFrame) em uma tabela do MySQL.
+
+        Args:
+            df (DataFrame): DataFrame contendo os dados a serem inseridos.
+            table_name (str): Nome da tabela de destino.
+            columns (List[str]): Lista de colunas da tabela.
+
+        Returns:
+            None
+        """
+        batch: List[Tuple] = []
         for row in df.toLocalIterator():
-            batch.append(row)
+            batch.append(tuple(row))
             if len(batch) >= batch_size:
                 insert_batch(table_name, columns, batch)
                 batch = []
@@ -110,23 +157,22 @@ def load_to_mysql(dim_aluno, dim_escola, dim_municipio, fato_enem, batch_size=10
         ["codigo_municipio", "nom_municipio", "estado"]
     )
 
-    # Insere dados na tabela fato_enem
-    # Primeiro, mapeia as chaves estrangeiras
+    # Mapeia as chaves estrangeiras
     cursor.execute("SELECT numero_inscricao, id_aluno FROM dim_aluno")
-    aluno_map = {row[0]: row[1] for row in cursor.fetchall()}
+    aluno_map: Dict[str, int] = {row[0]: row[1] for row in cursor.fetchall()}
 
     cursor.execute("SELECT codigo_municipio, id_escola FROM dim_escola")
-    escola_map = {row[0]: row[1] for row in cursor.fetchall()}
+    escola_map: Dict[int, int] = {row[0]: row[1] for row in cursor.fetchall()}
 
     cursor.execute("SELECT codigo_municipio, id_municipio FROM dim_municipio")
-    municipio_map = {row[0]: row[1] for row in cursor.fetchall()}
+    municipio_map: Dict[int, int] = {row[0]: row[1] for row in cursor.fetchall()}
 
     # Prepara os dados para a tabela fato_enem
-    batch = []
+    batch: List[Tuple] = []
     for row in fato_enem.toLocalIterator():
-        id_aluno = aluno_map.get(row["numero_inscricao"])
-        id_escola = escola_map.get(row["codigo_municipio"])
-        id_municipio = municipio_map.get(row["codigo_municipio"])
+        id_aluno: Optional[int] = aluno_map.get(row["numero_inscricao"])
+        id_escola: Optional[int] = escola_map.get(row["codigo_municipio"])
+        id_municipio: Optional[int] = municipio_map.get(row["codigo_municipio"])
 
         if id_aluno and id_escola and id_municipio:
             batch.append((
@@ -163,69 +209,3 @@ def load_to_mysql(dim_aluno, dim_escola, dim_municipio, fato_enem, batch_size=10
     # Fechamento da conexão
     cursor.close()
     conn.close()
-
-
-
-# def load_to_mysql(df, mysql, table_name, batch_size=1000):
-#     # Conecta ao MySQL sem especificar um banco de dados inicial
-#     conn = mysql.connector.connect(
-#         host="localhost",
-#         user="root",
-#         password="1234"
-#     )
-#     cursor = conn.cursor()
-
-#     # Cria o banco de dados se ele não existir
-#     cursor.execute("CREATE DATABASE IF NOT EXISTS enem_db")
-#     cursor.execute("USE enem_db")
-
-#     # Cria a tabela se ela não existir
-#     cursor.execute(f"""
-#         CREATE TABLE IF NOT EXISTS {table_name} (
-#             numero_inscricao VARCHAR(20) PRIMARY KEY,
-#             sexo VARCHAR(1),
-#             etnia INT,
-#             codigo_municipio INT,
-#             nom_municipio VARCHAR(100),
-#             estado VARCHAR(2),
-#             presenca_CN INT,
-#             presenca_CH INT,
-#             presenca_LC INT,
-#             presenca_MT INT,
-#             nota_CN DOUBLE,
-#             nota_CH DOUBLE,
-#             nota_LC DOUBLE,
-#             nota_MT DOUBLE,
-#             nota_redacao VARCHAR(10),
-#             situacao_conclusao INT,
-#             NOTA_MEDIA DOUBLE
-#         )
-#     """)
-
-#     # Função para inserir um lote de dados
-#     def insert_batch(batch):
-#         query = f"""
-#             INSERT INTO {table_name} (
-#                 numero_inscricao, sexo, etnia, codigo_municipio, nom_municipio, estado, 
-#                 presenca_CN, presenca_CH, presenca_LC, presenca_MT, 
-#                 nota_CN, nota_CH, nota_LC, nota_MT, nota_redacao, situacao_conclusao, NOTA_MEDIA
-#             ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-#         """
-#         cursor.executemany(query, batch)
-#         conn.commit()
-
-#     # Processa os dados em lotes
-#     batch = []
-#     for row in df.toLocalIterator():  # Usa toLocalIterator para evitar coletar tudo na memória
-#         batch.append(row)
-#         if len(batch) >= batch_size:
-#             insert_batch(batch)
-#             batch = []
-
-#     # Insere o último lote (se houver)
-#     if batch:
-#         insert_batch(batch)
-
-#     # Fechamento da conexão
-#     cursor.close()
-#     conn.close()
