@@ -31,7 +31,7 @@ O sistema utiliza as seguintes tecnologias principais:
 
 Abaixo está um diagrama simplificado da arquitetura do projeto:
 
-![Diagrama modelo estrela](diagramas\process.png)
+![Diagrama modelo estrela](https://github.com/xing-wang-kai/DESAFIO_DATA_MESHA/blob/main/diagramas/process.png)
 
 ---
 
@@ -220,7 +220,7 @@ O notebook `PROJETO_ETL_ENEM.ipynb` contém o código completo do projeto, inclu
 
 O esquema estrela é composto por 4 tabelas de dimensões e 1 tabela fato:
 
-![Diagrama modelo estrela](diagramas\diagrama_modelo_estrela.png)
+![Diagrama modelo estrela](https://github.com/xing-wang-kai/DESAFIO_DATA_MESHA/blob/main/diagramas/diagrama_modelo_estrela.png)
 
 #### 1. **Tabela Fato: `fato_enem`**
    - **Descrição**: Armazena as notas e informações de presença dos alunos no ENEM.
