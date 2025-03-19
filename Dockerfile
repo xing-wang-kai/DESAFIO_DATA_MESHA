@@ -9,7 +9,8 @@ COPY . .
 
 # Instalar as dependências do Python
 RUN pip install --no-cache-dir -r requirements.txt
-
+RUN apt-get update && apt-get install -y curl
+RUN apk add --no-cache curl
 # Instalar o MySQL Connector/J para o Spark
 RUN curl -O https://repo1.maven.org/maven2/mysql/mysql-connector-java/8.0.26/mysql-connector-java-8.0.26.jar && \
     mv mysql-connector-java-8.0.26.jar /opt/bitnami/spark/jars/
