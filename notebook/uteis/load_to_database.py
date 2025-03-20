@@ -28,10 +28,10 @@ def load_to_mysql(
     load_dotenv()
 
     # Configurações de conexão com o MySQL
-    host: str = os.getenv("HOST", "localhost")
-    port: int = int(os.getenv("PORT", "3306"))
-    user: str = os.getenv("USER", "root")
-    password: str = os.getenv("PASSWORD", "1234")
+    host: str = os.getenv("HOST")
+    port: int = int(os.getenv("PORT"))
+    user: str = os.getenv("USER")
+    password: str = os.getenv("PASSWORD")
 
     # Conecta ao MySQL
     conn: mysql.connector.MySQLConnection = mysql.connector.connect(
