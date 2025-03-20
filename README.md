@@ -298,7 +298,7 @@ O notebook `PROJETO_ETL_ENEM.ipynb` contém o código completo do projeto, inclu
 
 O esquema estrela é composto por 4 tabelas de dimensões e 1 tabela fato:
 
-![Diagrama modelo estrela](https://github.com/xing-wang-kai/DESAFIO_DATA_MESHA/blob/main/diagramas/diagrama_modelo_estrela.png)
+![Diagrama modelo estrela](https://github.com/xing-wang-kai/DESAFIO_DATA_MESHA/blob/main/diagramas/modelo_dimensional.png)
 
 #### 1. **Tabela Fato: `fato_enem`**
    - **Descrição**: Armazena as notas e informações de presença dos alunos no ENEM.
